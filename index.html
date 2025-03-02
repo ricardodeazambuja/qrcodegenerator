@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Advanced QR Code Generator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            margin: 0;
+        }
+        .container { width: 600px; margin: 20px auto 0 auto; padding: 20px; box-sizing: border-box;}
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="file"], select, textarea, input[type="number"], input[type="color"] { width: 100%; padding: 8px; box-sizing: border-box; margin-bottom: 5px; }
+        button { padding: 10px 15px; cursor: pointer; }
+        #qrcodeCanvas, #qrcodeSVG { display: block; margin-top: 20px; } /* Both canvas and SVG can be block */
+        .hidden-form { display: none; }
+        .size-options { display: flex; justify-content: space-between; }
+        .size-options > div { width: 48%; }
+        .privacy-message {
+            background-color: #e0f7fa;
+            border: 1px solid #b2ebf2;
+            color: #004d40;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        footer {
+            background-color: #f0f0f0;
+            padding: 10px;
+            text-align: center;
+            margin-top: 20px;
+            font-size: 0.9em;
+            color: #777;
+        }
+        footer a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+        #qrcodeSVG { /* Style for SVG container to ensure proper display */
+            width: auto; /* Adjust as needed */
+            height: auto; /* Adjust as needed */
+        }
+    </style>
+    <script src="qrcode.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Advanced QR Code Generator</h1>
+        <div class="privacy-message">
+            <i style="color: #00897b; margin-right: 5px;">🔒</i> <strong>Privacy Notice:</strong> All QR code generation is done directly in your web browser. <strong>Your data (text, images, etc.) is never sent to any server and remains entirely on your computer.</strong>
+        </div>
+        <div class="form-group">
+            <label for="qrType">Select QR Code Type:</label>
+            <select id="qrType" onchange="showHideForms()">
+                <option value="text">Text/URL</option>
+                <option value="wifi">WiFi Password</option>
+                <option value="vcard">vCard</option>
+                <option value="email">Email</option>
+                <option value="event">Event</option>
+                <option value="geo">Geolocation</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="outputType">Output Type:</label>
+            <select id="outputType" onchange="toggleOutputArea()" >
+                <option value="canvas" selected>Bitmap (PNG/Canvas)</option>
+                <option value="svg">SVG (Vector)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label for="imageUpload">Upload Logo Image (Optional, PNG, JPG):</label>
+            <input type="file" id="imageUpload" accept="image/*">
+            <small>For logo overlay. Best results with Error Correction Level M or higher (no guarantees it will work, though!).</small>
+        </div>
+        <div class="size-options">
+            <div class="form-group">
+                <label for="qrSize">Size (pixels):</label>
+                <input type="number" id="qrSize" value="256" min="10" max="512" placeholder="Size in pixels">
+                <small>For Bitmap (PNG) only. SVG is scalable.</small>
+            </div>
+        </div>
+        <div class="form-group">
+            <label for="qrErrorCorrection">Error Correction Level:</label>
+            <select id="qrErrorCorrection">
+                <option value="L">L - Low</option>
+                <option value="M">M - Medium</option>
+                <option value="Q">Q - Quartile</option>
+                <option value="H" selected>H - High (Default)</option>
+            </select>
+            <small>Higher levels increase redundancy and error resistance.</small>
+        </div>
+        <div class="color-options">
+            <div class="form-group">
+                <label for="qrColorDark">Dark Color:</label>
+                <input type="color" id="qrColorDark" value="#000000">
+                <small>Color for the QR code modules (squares).</small>
+            </div>
+            <div class="form-group">
+                <label for="qrColorLight">Light Color:</label>
+                <input type="color" id="qrColorLight" value="#ffffff">
+                <small>Background color.</small>
+            </div>
+        </div>
+
+        <div id="textForm" class="qr-form">
+            <div class="form-group">
+                <label for="textInput">Text/URL:</label>
+                <input type="text" id="textInput" placeholder="Enter text or URL">
+            </div>
+        </div>
+        <div id="wifiForm" class="qr-form hidden-form">
+            <div class="form-group">
+                <label for="wifiSsid">WiFi SSID:</label>
+                <input type="text" id="wifiSsid" placeholder="WiFi Network Name (SSID)">
+            </div>
+            <div class="form-group">
+                <label for="wifiPassword">Password:</label>
+                <input type="text" id="wifiPassword" placeholder="WiFi Password">
+            </div>
+            <div class="form-group">
+                <label for="wifiEncryption">Encryption:</label>
+                <select id="wifiEncryption">
+                    <option value="WPA">WPA/WPA2</option>
+                    <option value="WEP">WEP</option>
+                    <option value="nopass">No Encryption</option>
+                </select>
+            </div>
+        </div>
+        <div id="vcardForm" class="qr-form hidden-form">
+            <div class="form-group">
+                <label for="vcardFirstName">First Name:</label>
+                <input type="text" id="vcardFirstName" placeholder="First Name">
+            </div>
+            <div class="form-group">
+                <label for="vcardLastName">Last Name:</label>
+                <input type="text" id="vcardLastName" placeholder="Last Name">
+            </div>
+            <div class="form-group">
+                <label for="vcardOrg">Organization:</label>
+                <input type="text" id="vcardOrg" placeholder="Organization">
+            </div>
+            <div class="form-group">
+                <label for="vcardTel">Telephone:</label>
+                <input type="text" id="vcardTel" placeholder="Telephone Number">
+            </div>
+            <div class="form-group">
+                <label for="vcardEmail">Email:</label>
+                <input type="text" id="vcardEmail" placeholder="Email Address">
+            </div>
+            <div class="form-group">
+                <label for="vcardURL">URL:</label>
+                <input type="text" id="vcardURL" placeholder="Website URL">
+            </div>
+        </div>
+        <div id="emailForm" class="qr-form hidden-form">
+            <div class="form-group">
+                <label for="emailTo">To:</label>
+                <input type="text" id="emailTo" placeholder="Recipient Email Address">
+            </div>
+            <div class="form-group">
+                <label for="emailSubject">Subject:</label>
+                <input type="text" id="emailSubject" placeholder="Email Subject (optional)">
+            </div>
+            <div class="form-group">
+                <label for="emailBody">Body:</label>
+                <textarea id="emailBody" placeholder="Email Body (optional)"></textarea>
+            </div>
+        </div>
+        <div id="eventForm" class="qr-form hidden-form">
+            <div class="form-group">
+                <label for="eventTitle">Event Title:</label>
+                <input type="text" id="eventTitle" placeholder="Event Title">
+            </div>
+            <div class="form-group">
+                <label for="eventLocation">Location:</label>
+                <input type="text" id="eventLocation" placeholder="Event Location (optional)">
+            </div>
+            <div class="form-group">
+                <label for="eventStartDate">Start Date/Time:</label>
+                <input type="datetime-local" id="eventStartDate">
+            </div>
+            <div class="form-group">
+                <label for="eventEndDate">End Date/Time:</label>
+                <input type="datetime-local" id="eventEndDate">
+            </div>
+            <div class="form-group">
+                <label for="eventDescription">Description:</label>
+                <textarea id="eventDescription" placeholder="Event Description (optional)"></textarea>
+            </div>
+        </div>
+        <div id="geoForm" class="qr-form hidden-form">
+            <div class="form-group">
+                <label for="geoLatitude">Latitude:</label>
+                <input type="text" id="geoLatitude" placeholder="Latitude (e.g., 37.7749)">
+            </div>
+            <div class="form-group">
+                <label for="geoLongitude">Longitude:</label>
+                <input type="text" id="geoLongitude" placeholder="Longitude (e.g., -122.4194)">
+            </div>
+        </div>
+        <button onclick="generateQRCode()">Generate QR Code</button>
+        <div id="qrcodeCanvas" style="margin-top:20px;"></div>
+        <div id="qrcodeSVG" style="margin-top:20px; display: none;"></div>
+        <canvas id="qrCanvas" style="display:none;"></canvas>
+        <footer>
+            Powered by <a href="https://github.com/davidshimjs/qrcodejs" target="_blank" rel="noopener">qrcodejs</a>
+        </footer>
+    </div>
+
+    <script>
+        function showHideForms() {
+            const qrType = document.getElementById('qrType').value;
+            const forms = document.querySelectorAll('.qr-form');
+            forms.forEach(form => form.classList.add('hidden-form'));
+            document.getElementById(qrType + 'Form').classList.remove('hidden-form');
+        }
+
+        function toggleOutputArea() {
+            const outputType = document.getElementById('outputType').value;
+            const qrcodeDivCanvas = document.getElementById('qrcodeCanvas');
+            const qrcodeSVGDiv = document.getElementById('qrcodeSVG');
+            const qrCanvas = document.getElementById('qrCanvas');
+
+            console.log("toggleOutputArea() called"); // DEBUGGING
+            console.log("  outputTypeSelect.value:", outputType); // DEBUGGING
+
+            if (outputType === 'svg') {
+                qrcodeDivCanvas.style.display = 'none';
+                qrcodeDivCanvas.innerHTML = '';
+                qrcodeSVGDiv.style.display = 'block';
+                qrCanvas.style.display = 'none';
+            } else { // 'canvas' or default
+                qrcodeDivCanvas.style.display = 'block';
+                qrcodeSVGDiv.style.display = 'none';
+                qrcodeSVGDiv.innerHTML = '';
+                qrCanvas.style.display = 'none';
+            }
+
+            console.log("  qrcodeDivCanvas.style.display AFTER toggleOutputArea:", qrcodeDivCanvas.style.display); // DEBUGGING
+            console.log("  qrcodeSVGDiv.style.display AFTER toggleOutputArea:", qrcodeSVGDiv.style.display); // DEBUGGING
+        }
+
+
+        function generateQRCode() {
+            console.log("generateQRCode() function started");
+
+            const qrType = document.getElementById('qrType').value;
+            const fileInput = document.getElementById('imageUpload');
+            const qrcodeDivCanvas = document.getElementById('qrcodeCanvas');
+            const qrcodeSVGDiv = document.getElementById('qrcodeSVG');
+            const qrCanvas = document.getElementById('qrCanvas');
+            const qrSizeInput = document.getElementById('qrSize');
+            const qrErrorCorrectionSelect = document.getElementById('qrErrorCorrection');
+            const qrColorDarkInput = document.getElementById('qrColorDark');
+            const qrColorLightInput = document.getElementById('qrColorLight');
+            const outputTypeSelect = document.getElementById('outputType');
+            const QRCodeLimitLength=[[17,14,11,7],[32,26,20,14],[53,42,32,24],[78,62,46,34],[106,84,60,44],[134,106,74,58],[154,122,86,64],[192,152,108,84],[230,180,130,98],[271,213,151,119],[321,251,177,137],[367,287,203,155],[425,331,241,177],[458,362,258,194],[520,412,292,220],[586,450,322,250],[644,504,364,280],[718,560,394,310],[792,624,442,338],[858,666,482,382],[929,711,509,403],[1003,779,565,439],[1091,857,611,461],[1171,911,661,511],[1273,997,715,535],[1367,1059,751,593],[1465,1125,805,625],[1528,1190,868,658],[1628,1264,908,698],[1732,1370,982,742],[1840,1452,1030,790],[1952,1538,1112,842],[2068,1628,1168,898],[2188,1722,1228,958],[2303,1809,1283,983],[2431,1911,1351,1051],[2563,1989,1423,1093],[2699,2099,1499,1139],[2809,2213,1579,1219],[2953,2331,1663,1273]];
+
+            let qrText = "";
+            if (qrType === 'text') {
+                qrText = document.getElementById('textInput').value;
+                if (!qrText) { alert("Please enter text/URL."); return; }
+            } else if (qrType === 'wifi') {
+                const ssid = document.getElementById('wifiSsid').value;
+                const password = document.getElementById('wifiPassword').value;
+                const encryption = document.getElementById('wifiEncryption').value;
+                if (!ssid) { alert("Please enter WiFi SSID."); return; }
+                qrText = `WIFI:S:${ssid};T:${encryption};P:${password};;`;
+            } else if (qrType === 'vcard') {
+                const firstName = document.getElementById('vcardFirstName').value;
+                const lastName = document.getElementById('vcardLastName').value;
+                const org = document.getElementById('vcardOrg').value;
+                const tel = document.getElementById('vcardTel').value;
+                const email = document.getElementById('vcardEmail').value;
+                const url = document.getElementById('vcardURL').value;
+                qrText = `BEGIN:VCARD\nVERSION:3.0\nN:${lastName};${firstName};;;\nORG:${org}\nTEL:${tel}\nEMAIL:${email}\nURL:${url}\nEND:VCARD`;
+            } else if (qrType === 'email') {
+                const to = document.getElementById('emailTo').value;
+                const subject = document.getElementById('emailSubject').value;
+                const body = document.getElementById('emailBody').value;
+                if (!to) { alert("Please enter recipient email."); return; }
+                qrText = `mailto:${to}${subject ? '?subject=' + encodeURIComponent(subject) : ''}${body ? '&body=' + encodeURIComponent(body) : ''}`;
+            } else if (qrType === 'event') {
+                const title = document.getElementById('eventTitle').value;
+                const location = document.getElementById('eventLocation').value;
+                const startDate = document.getElementById('eventStartDate').value;
+                const endDate = document.getElementById('eventEndDate').value;
+                const description = document.getElementById('eventDescription').value;
+                if (!title || !startDate || !endDate) { alert("Please enter Event Title, Start and End Date/Time."); return; }
+                const startDateTime = new Date(startDate).toISOString().replace(/[-:]/g, '').slice(0, -5) + 'Z';
+                const endDateTime = new Date(endDate).toISOString().replace(/[-:]/g, '').slice(0, -5) + 'Z';
+                qrText = `BEGIN:VEVENT\nSUMMARY:${title}\nLOCATION:${location}\nDTSTART:${startDateTime}\nDTEND:${endDateTime}\nDESCRIPTION:${description}\nEND:VEVENT`;
+            } else if (qrType === 'geo') {
+                const latitude = document.getElementById('geoLatitude').value;
+                const longitude = document.getElementById('geoLongitude').value;
+                if (!latitude || !longitude) { alert("Please enter Latitude and Longitude."); return; }
+                qrText = `https://www.google.com/maps/place/${latitude},${longitude}`;
+            }
+
+            let qrCodeOptions = {
+                text: qrText,
+                useSVG: (outputTypeSelect.value === 'svg'), // Conditionally enable SVG output
+                colorDark : qrColorDarkInput.value,
+                colorLight : qrColorLightInput.value,
+                correctLevel : QRCode.CorrectLevel[qrErrorCorrectionSelect.value]
+            };
+
+            const qrSize = parseInt(qrSizeInput.value);
+            if (!isNaN(qrSize) && qrSize > 0 && outputTypeSelect.value === 'canvas') { // Apply size only for canvas
+                qrCodeOptions.width = qrSize;
+                qrCodeOptions.height = qrSize;
+            } else if (outputTypeSelect.value === 'svg') {
+                if (!isNaN(qrSize) && qrSize > 0) {
+                    qrCodeOptions.width = qrSize;  //size is still relevant for svg container size, even if svg is vector
+                    qrCodeOptions.height = qrSize;
+                } else {
+                    qrCodeOptions.width = 256; //default svg size if not specified
+                    qrCodeOptions.height = 256;
+                }
+            }
+
+
+            qrcodeDivCanvas.innerHTML = '';
+            qrcodeSVGDiv.innerHTML = '';
+            qrCanvas.style.display = 'none';
+
+            console.log("generateQRCode() - Output Type:", outputTypeSelect.value); // DEBUGGING
+            console.log("generateQRCode() - SVG Output Option:", qrCodeOptions.useSVG); // DEBUGGING
+
+
+            // --- Character Limit Check Start ---
+            const selectedErrorCorrectionLevel = qrErrorCorrectionSelect.value;
+            const errorCorrectionIndex = { L: 0, M: 1, Q: 2, H: 3}[selectedErrorCorrectionLevel];
+            const maxChars = QRCodeLimitLength[QRCodeLimitLength.length - 1][errorCorrectionIndex]; // Max chars for Version 40 and selected level
+
+            if (qrText.length > maxChars) {
+                alert(`Error: The text you entered is too long (${qrText.length} characters). The maximum allowed characters for Error Correction Level ${selectedErrorCorrectionLevel} is ${maxChars}. \n\nPlease shorten your text or choose a higher Error Correction Level (M, Q, or H) to increase capacity.`);
+                qrcodeDivCanvas.innerHTML = '<div style="color: red; font-weight: bold;">Error: Text too long.</div>';
+                qrcodeSVGDiv.innerHTML = '<div style="color: red; font-weight: bold;">Error: Text too long.</div>';
+                return;
+            }
+            // --- Character Limit Check End ---
+
+
+            try {
+                console.log("qrCanvas", qrCodeOptions.useSVG);
+                const qrcode = new QRCode( (outputTypeSelect.value === 'svg' ? qrcodeSVGDiv : qrcodeDivCanvas), qrCodeOptions); //Dynamically select output div
+                const uploadedImage = fileInput.files[0];
+                if (uploadedImage && outputTypeSelect.value === 'canvas') { // Apply logo only for canvas output for now, and only if file uploaded
+                    const imageURL = URL.createObjectURL(uploadedImage);
+                    const logoImage = new Image();
+
+                    logoImage.onload = function() {
+                        const qrCodeCanvas = qrcodeDivCanvas.querySelector('canvas');
+                        if (qrCodeCanvas) {
+                            qrCanvas.style.display = 'block';
+                            qrcodeDivCanvas.style.display = 'none';
+
+                            qrCanvas.width = qrCodeCanvas.width;
+                            qrCanvas.height = qrCodeCanvas.height;
+                            const ctx = qrCanvas.getContext('2d');
+                            ctx.drawImage(qrCodeCanvas, 0, 0);
+
+                            const logoWidth = 60;
+                            const logoHeight = logoWidth * (logoImage.height / logoImage.width);
+                            const x = (qrCanvas.width - logoWidth) / 2;
+                            const y = (qrCanvas.height - logoHeight) / 2;
+                            ctx.drawImage(logoImage, x, y, logoWidth, logoHeight);
+                        }
+                    };
+                    logoImage.src = imageURL;
+                } else {
+                     qrCanvas.style.display = 'none';
+                     if (outputTypeSelect.value === 'canvas') {
+                         qrcodeDivCanvas.style.display = 'block'; //show canvas div if canvas output
+                         qrcodeSVGDiv.style.display = 'none'; //hide svg div
+                     } else if (outputTypeSelect.value === 'svg') {
+                         qrcodeDivCanvas.style.display = 'none'; //hide canvas div
+                         qrcodeSVGDiv.style.display = 'block'; //show svg div if svg output
+                     }
+
+                }
+
+            } catch (error) {
+                console.error("QR Code Generation Error (Fallback):", error);
+                alert("Error generating QR Code (Fallback): " + error.message + ". Please check the input data and try again.");
+                qrcodeDivCanvas.innerHTML = '<div style="color: red; font-weight: bold;">Error generating QR Code.</div>';
+                qrcodeSVGDiv.innerHTML = '<div style="color: red; font-weight: bold;">Error generating QR Code.</div>';
+            }
+
+             console.log("  qrcodeDivCanvas.style.display AFTER generateQRCode:", qrcodeDivCanvas.style.display); // DEBUGGING
+             console.log("  qrcodeSVGDiv.style.display AFTER generateQRCode:", qrcodeSVGDiv.style.display); // DEBUGGING
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            showHideForms();
+            toggleOutputArea(); // Set initial output area based on default selection
+        });
+    </script>
+</body>
+</html>
