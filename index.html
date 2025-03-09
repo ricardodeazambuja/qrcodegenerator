@@ -47,10 +47,27 @@
             width: auto; /* Adjust as needed */
             height: auto; /* Adjust as needed */
         }
+        .fork-me-github {
+            position: fixed;
+            top: 0;
+            right: 0;
+            z-index: 1000; /* Ensure it's on top */
+        }
+        .fork-me-github a {
+            display: block; /* Make the entire link area clickable */
+        }
+
+        .fork-me-github img {
+            border: 0; /* Remove any image border */
+        }
     </style>
     <script src="qrcode.js"></script>
 </head>
 <body>
+    <div class="fork-me-github">
+        <a href="https://github.com/ricardodeazambuja/qrcodegenerator"><img decoding="async" width="149" height="149" src="https://github.blog/wp-content/uploads/2008/12/forkme_right_red_aa0000.png" class="attachment-full size-full" alt="Fork me on GitHub" loading="lazy"></a>
+        </a>
+    </div>
     <div class="container">
         <h1>Advanced QR Code Generator</h1>
         <div class="privacy-message">
